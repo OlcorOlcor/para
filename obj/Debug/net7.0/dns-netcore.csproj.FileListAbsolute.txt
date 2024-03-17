@@ -1,0 +1,15 @@
+D:\prog\para\bin\Debug\net7.0\dns-netcore.exe
+D:\prog\para\bin\Debug\net7.0\dns-netcore.deps.json
+D:\prog\para\bin\Debug\net7.0\dns-netcore.runtimeconfig.json
+D:\prog\para\bin\Debug\net7.0\dns-netcore.dll
+D:\prog\para\bin\Debug\net7.0\dns-netcore.pdb
+D:\prog\para\obj\Debug\net7.0\dns-netcore.csproj.AssemblyReference.cache
+D:\prog\para\obj\Debug\net7.0\dns-netcore.GeneratedMSBuildEditorConfig.editorconfig
+D:\prog\para\obj\Debug\net7.0\dns-netcore.AssemblyInfoInputs.cache
+D:\prog\para\obj\Debug\net7.0\dns-netcore.AssemblyInfo.cs
+D:\prog\para\obj\Debug\net7.0\dns-netcore.csproj.CoreCompileInputs.cache
+D:\prog\para\obj\Debug\net7.0\dns-netcore.dll
+D:\prog\para\obj\Debug\net7.0\refint\dns-netcore.dll
+D:\prog\para\obj\Debug\net7.0\dns-netcore.pdb
+D:\prog\para\obj\Debug\net7.0\dns-netcore.genruntimeconfig.cache
+D:\prog\para\obj\Debug\net7.0\ref\dns-netcore.dll
