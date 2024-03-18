@@ -2,13 +2,14 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace dns_netcore {
     class RecursiveResolver : IRecursiveResolver {
         private IDNSClient dnsClient;
-
-        private ConcurrentDictionary<string, IP4Addr> cache_ = new();
+        private ConcurrentDictionary<string, IP4Addr> finished_cache_ = new();
+        private ConcurrentDictionary<string, IP4Addr> working_cache = new();
 
         public RecursiveResolver(IDNSClient client) {
             this.dnsClient = client;
@@ -17,10 +18,10 @@ namespace dns_netcore {
         private bool CheckCache(string domain, out IP4Addr address, out string foundDomain) {
             string remainingDomain = domain;
             while (true) {
-                if (cache_.TryGetValue(remainingDomain, out IP4Addr addr)) {
-                    if (dnsClient.Reverse(addr).Result == remainingDomain) {
+                if (finished_cache_.TryGetValue(remainingDomain, out IP4Addr cachedAddr)) {
+                    if (dnsClient.Reverse(cachedAddr).Result == remainingDomain) {
                         foundDomain = remainingDomain;
-                        address = addr;
+                        address = cachedAddr;
                         return true;
                     }
                 }
@@ -34,10 +35,18 @@ namespace dns_netcore {
             return false;
         }
 
-        private Task<IP4Addr> HandleRootServer(string domain, IP4Addr res) {
-            return Task<IP4Addr>.Run(() => {
+        private Task<IP4Addr> HandleRootServer(string domain, IP4Addr res, CancellationToken token) {
+            return Task<IP4Addr>.Run(async () => {
                 List<string> domainToCache = new();
-                if (CheckCache(domain, out IP4Addr address, out string foundDomain)) {
+                bool cacheHit = false;
+                IP4Addr address = new();
+                string foundDomain = "";
+                try {
+                    cacheHit = CheckCache(domain, out address, out foundDomain);
+                } catch {
+                    cacheHit = false;
+                }
+                if (cacheHit) {
                     res = address;
                     if (domain == foundDomain) {
                         return res;
@@ -48,11 +57,13 @@ namespace dns_netcore {
                 string[] domains = domain.Split('.');
                 Array.Reverse(domains);
                 foreach (var sub in domains) {
-                    var t = dnsClient.Resolve(res, sub);
-                    t.Wait();
+                    if (token.IsCancellationRequested) { 
+                        break;
+                    }
+                    var result = await dnsClient.Resolve(res, sub);
                     domainToCache.Insert(0, sub);
-                    this.cache_.TryAdd(string.Join(".", domainToCache), t.Result);
-                    res = t.Result;
+                    this.finished_cache_.TryAdd(string.Join(".", domainToCache), result);
+                    res = result;
                 }
                 return res;
             });
@@ -61,14 +72,16 @@ namespace dns_netcore {
         public Task<IP4Addr> ResolveRecursive(string domain) {
             return Task<IP4Addr>.Run(async () => {
                 IReadOnlyList<IP4Addr> roots = dnsClient.GetRootServers();
+                CancellationTokenSource source = new CancellationTokenSource();
+                CancellationToken token = source.Token;
                 var tasks = new List<Task<IP4Addr>>();
                 foreach(var root in roots) {
-                    tasks.Add(HandleRootServer(domain, root));
+                    tasks.Add(HandleRootServer(domain, root, token));
                 }
+                Task<IP4Addr> result = await Task.WhenAny(tasks);
+                source.Cancel();
 
-                IP4Addr[] results = await Task.WhenAll(tasks);
-                // TODO cancel the other tasks
-                return results[0];
+                return await result;
             });
         }
     }
